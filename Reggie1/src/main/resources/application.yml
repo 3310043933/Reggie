@@ -5,7 +5,7 @@ spring:
   application:
     name: reggie
   redis:
-    host: localhost
+    host: 127.0.0.1
     port: 6379
     # 默认操作0号数据库
     database: 0
@@ -24,7 +24,6 @@ spring:
       password:
 mybatis-plus:
   configuration:
-    #???????????????????????????????????????
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
