@@ -10,8 +10,11 @@ import com.liwenjie.reggie1.entity.Setmeal;
 import com.liwenjie.reggie1.entity.SetmealDish;
 import com.liwenjie.reggie1.service.SetmealDishService;
 import com.liwenjie.reggie1.service.SetmealService;
+import javafx.animation.Animation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +45,7 @@ public class SetmealController {
     @Autowired
     private RedisTemplate redisTemplate;
 
+    @CacheEvict(value = "setmeal", allEntries = true)
     @PostMapping()
     public R<String> addSetmeal(@RequestBody SetmealDto setmealDto){
         String key = "setmeal_" + setmealDto.getCategoryId() + "_" + setmealDto.getStatus();
@@ -66,12 +70,11 @@ public class SetmealController {
     }
 
 
+    @CacheEvict(value = "setmeal", allEntries = true)
     @PutMapping
     public R<String> updateSetmeal(@RequestBody SetmealDto setmealDto){
         log.info("修改套餐信息:{}", setmealDto);
         setmealService.updateSetmealWithSetmealDish(setmealDto);
-        String key = "setmeal_" + setmealDto.getCategoryId() + "_" + setmealDto.getStatus();
-        redisTemplate.delete(key);
         return R.success("修改成功");
     }
 
@@ -82,6 +85,7 @@ public class SetmealController {
      * @param status
      * @return
      */
+    @CacheEvict(value = "setmeal", allEntries = true)
     @PostMapping("/status/{status}")
     public R<String> changeStatus(@RequestParam("ids") String ids,
                                   @PathVariable Integer status) {
@@ -104,6 +108,7 @@ public class SetmealController {
      * @param ids
      * @return
      */
+    @CacheEvict(value = "setmeal", allEntries = true)
     @DeleteMapping("")
     public R<String> deleteDish(@RequestParam("ids") String ids) {
         // stream
@@ -115,20 +120,16 @@ public class SetmealController {
         return R.success("删除成功");
     }
 
+
+    @Cacheable(value = "setmeal", key = "#p0.categoryId")
     @GetMapping("/list")
     public R<List<Setmeal>> list(Setmeal setmeal){
-        String key = "setmeal_" + setmeal.getCategoryId() + "_" + setmeal.getStatus();
-        List<Setmeal> o = (List<Setmeal>) redisTemplate.opsForValue().get(key);
-        if(o == null) {
-            LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(setmeal.getStatus() != null, Setmeal::getStatus, 1);
-            wrapper.eq(setmeal.getCategoryId() != null, Setmeal::getCategoryId, setmeal.getCategoryId());
-            wrapper.orderByDesc(Setmeal::getUpdateTime);
-            List<Setmeal> setmeals = setmealService.list(wrapper);
-            redisTemplate.opsForValue().set(key, setmeals, 60, TimeUnit.MINUTES);
-            return R.success(setmeals);
-        }
-        return R.success(o);
+        LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(setmeal.getStatus() != null, Setmeal::getStatus, 1);
+        wrapper.eq(setmeal.getCategoryId() != null, Setmeal::getCategoryId, setmeal.getCategoryId());
+        wrapper.orderByDesc(Setmeal::getUpdateTime);
+        List<Setmeal> setmeals = setmealService.list(wrapper);
+        return R.success(setmeals);
     }
 
 }

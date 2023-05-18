@@ -11,6 +11,8 @@ import com.liwenjie.reggie1.service.DishService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,6 +51,7 @@ public class DishController {
      * @param dishDto
      * @return
      */
+    @CacheEvict(value = "dish", allEntries = true)
     @PostMapping
     public R<String> addDish(@RequestBody DishDto dishDto) {
         log.info("{}", dishDto);
@@ -94,6 +97,7 @@ public class DishController {
      * @param dishDto
      * @return
      */
+    @CacheEvict(value = "dish", allEntries = true)
     @PutMapping
     public R<String> updateDish(@RequestBody DishDto dishDto) {
         log.info("接收到的信息:{}", dishDto);
@@ -110,6 +114,7 @@ public class DishController {
      * @param status
      * @return
      */
+    @CacheEvict(value = "dish", allEntries = true)
     @PostMapping("/status/{status}")
     public R<String> changeStatus(@RequestParam("ids") String ids,
                                   @PathVariable Integer status) {
@@ -126,6 +131,7 @@ public class DishController {
      * @param ids
      * @return
      */
+    @CacheEvict(value = "dish", allEntries = true)
     @DeleteMapping("")
     public R<String> deleteDish(@RequestParam("ids") String ids) {
         // stream
@@ -153,28 +159,19 @@ public class DishController {
      *
      * @return
      */
+    @Cacheable(value = "dish", key = "#p0.categoryId")
     @GetMapping("/list")
     public R<List<DishDto>> list(Dish dish){
-        String key = "dish_" + dish.getCategoryId() + "_" + dish.getStatus();
-        // 1. 先从Redis中获取数据
-        List<DishDto> o = (List<DishDto>) redisTemplate.opsForValue().get(key);
-        // 2. 没有就从数据库中查找
-        if(o == null) {
-            // 使用dish接收数据
-            List<Dish> dishes = dishService.list(dish);
-            List<DishDto> dishDtos = dishes.stream().map(item -> {
-                LambdaQueryWrapper<DishFlavor> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(DishFlavor::getDishId, item.getId());
-                List<DishFlavor> flavors = dishFlavorService.list(wrapper);
-                DishDto dishDto = new DishDto();
-                BeanUtils.copyProperties(item, dishDto);
-                dishDto.setFlavors(flavors);
-                return dishDto;
-            }).collect(Collectors.toList());
-
-            redisTemplate.opsForValue().set(key, dishDtos, 60 , TimeUnit.MINUTES);
-            return R.success(dishDtos);
-        }
-        return R.success(o);
+        List<Dish> dishes = dishService.list(dish);
+        List<DishDto> dishDtos = dishes.stream().map(item -> {
+            LambdaQueryWrapper<DishFlavor> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(DishFlavor::getDishId, item.getId());
+            List<DishFlavor> flavors = dishFlavorService.list(wrapper);
+            DishDto dishDto = new DishDto();
+            BeanUtils.copyProperties(item, dishDto);
+            dishDto.setFlavors(flavors);
+            return dishDto;
+        }).collect(Collectors.toList());
+        return R.success(dishDtos);
     }
 }
