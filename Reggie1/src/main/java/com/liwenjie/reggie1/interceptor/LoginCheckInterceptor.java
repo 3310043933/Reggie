@@ -26,7 +26,7 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        log.info("拦截到请求:{}", request.getRequestURL());
+//        log.info("拦截到请求:{}", request.getRequestURL());
         HttpSession session = request.getSession();
         Object employee = session.getAttribute("employee");
         if (employee != null) {
